@@ -340,7 +340,7 @@ const DEFAULT_PLAYERS = [
   {id:3,name:'Sam',gender:'m'},   {id:4,name:'Farrel',gender:'m'},
   {id:5,name:'Ali',gender:'m'},   {id:6,name:'Ibul',gender:'m'},
   {id:7,name:'Fandhi',gender:'m'},{id:8,name:'Rizuan',gender:'m'},
-  {id:9,name:'Savv',gender:'w'},  {id:10,name:'Febi',gender:'w'},
+  {id:9,name:'Savira',gender:'w'},{id:10,name:'Febi',gender:'w'},
   {id:11,name:'Angel',gender:'w'},{id:12,name:'Tina',gender:'w'},
   {id:13,name:'Bella',gender:'w'},{id:14,name:'Julia',gender:'w'},
   {id:15,name:'Early',gender:'w'},{id:16,name:'Nindy',gender:'w'},
@@ -359,10 +359,31 @@ function shuffle(arr) {
 }
 
 function generateRound1(players) {
-  const src = players || state.players;
-  const men   = shuffle(src.filter(p => p.gender === 'm'));
-  const women = shuffle(src.filter(p => p.gender === 'w'));
-  const courts = Math.min(NUM_COURTS, Math.floor(men.length / 2), Math.floor(women.length / 2));
+  const src     = players || state.players;
+  const allMen   = src.filter(p => p.gender === 'm');
+  const allWomen = src.filter(p => p.gender === 'w');
+  const courts = Math.min(NUM_COURTS, Math.floor(allMen.length / 2), Math.floor(allWomen.length / 2));
+  if (courts === 0) return [];
+
+  // Marcell (id=1) always partners with Savira (id=9) in Court 1
+  const pinnedMan   = src.find(p => p.id === 1 && p.gender === 'm');
+  const pinnedWoman = src.find(p => p.id === 9 && p.gender === 'w');
+  const restMen     = shuffle(allMen.filter(p => p.id !== 1));
+  const restWomen   = shuffle(allWomen.filter(p => p.id !== 9));
+
+  if (pinnedMan && pinnedWoman && restMen.length >= 1 && restWomen.length >= 1) {
+    const round = [[pinnedMan.id, pinnedWoman.id, restMen[0].id, restWomen[0].id]];
+    for (let c = 1; c < courts; c++) {
+      const i = c * 2 - 1;
+      if (restMen[i] && restWomen[i] && restMen[i+1] && restWomen[i+1])
+        round.push([restMen[i].id, restWomen[i].id, restMen[i+1].id, restWomen[i+1].id]);
+    }
+    return round;
+  }
+
+  // Fallback if either pinned player was removed
+  const men   = shuffle(allMen);
+  const women = shuffle(allWomen);
   const round = [];
   for (let c = 0; c < courts; c++) {
     const i = c * 2;
