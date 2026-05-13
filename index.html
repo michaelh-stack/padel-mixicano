@@ -102,6 +102,7 @@
   .round-pill { flex-shrink: 0; background: var(--surface); border: 1px solid var(--line); color: var(--muted); padding: 8px 14px; border-radius: 999px; font-family: 'JetBrains Mono', monospace; font-size: 12px; cursor: pointer; }
   .round-pill.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
   .round-pill.complete { border-color: var(--lime); color: var(--lime); }
+  .round-pill.tbd { color: var(--muted); border-style: dashed; opacity: 0.55; }
 
   .lb-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
   .lb-tab { flex: 1; background: var(--surface); border: 1px solid var(--line); color: var(--muted); padding: 9px; border-radius: 10px; font-family: inherit; font-weight: 600; font-size: 12px; cursor: pointer; }
@@ -228,7 +229,7 @@
   </div>
 
   <section id="tab-schedule">
-    <div class="info"><strong>Mixicano format:</strong> Every match is mixed doubles. Partners rotate every round. Play to <strong>16 points</strong> or <strong>12 minutes</strong>. Tap a player name to substitute them.</div>
+    <div class="info"><strong>Mexicano format:</strong> Round 1 is random. After each round, players are <strong>ranked by points</strong> — top-ranked men &amp; women pair up against each other. Play to <strong>16 points</strong> or <strong>12 minutes</strong>. Tap a player name to substitute them.</div>
     <div class="stats-strip">
       <div class="stat"><div class="stat-num" id="stat-round">1</div><div class="stat-lbl">Current Round</div></div>
       <div class="stat"><div class="stat-num" id="stat-done">0</div><div class="stat-lbl">Matches Done</div></div>
@@ -347,46 +348,69 @@ const DEFAULT_PLAYERS = [
   {id:19,name:'Vandella',gender:'w'}
 ];
 
-// ============== SCHEDULE GENERATOR ==============
-function generateSchedule(players) {
-  const men   = players.filter(p => p.gender === 'm').map(p => p.id);
-  const women = players.filter(p => p.gender === 'w').map(p => p.id);
-  const courts = Math.min(NUM_COURTS, Math.floor(men.length / 2), Math.floor(women.length / 2));
-  if (courts === 0) return Array.from({length: NUM_ROUNDS}, () => []);
-
-  const schedule = [];
-  const partnerCount = {};
-  const gamesCount   = {};
-  players.forEach(p => gamesCount[p.id] = 0);
-
-  for (let r = 0; r < NUM_ROUNDS; r++) {
-    const round = [];
-    const used  = new Set();
-    const sortedM = [...men].sort((a,b)   => (gamesCount[a]||0)-(gamesCount[b]||0));
-    const sortedW = [...women].sort((a,b) => (gamesCount[a]||0)-(gamesCount[b]||0));
-
-    for (let c = 0; c < courts; c++) {
-      const manA = sortedM.find(m => !used.has(m));
-      if (!manA) break;
-      const womanA = sortedW.filter(w => !used.has(w))
-        .sort((a,b) => (partnerCount[`${manA}-${a}`]||0)-(partnerCount[`${manA}-${b}`]||0))[0];
-      if (!womanA) break;
-      const manB = sortedM.find(m => !used.has(m) && m !== manA);
-      if (!manB) break;
-      const womanB = sortedW.filter(w => !used.has(w) && w !== womanA)
-        .sort((a,b) => (partnerCount[`${manB}-${a}`]||0)-(partnerCount[`${manB}-${b}`]||0))[0];
-      if (!womanB) break;
-
-      used.add(manA); used.add(womanA); used.add(manB); used.add(womanB);
-      round.push([manA, womanA, manB, womanB]);
-      const k1=`${manA}-${womanA}`, k2=`${manB}-${womanB}`;
-      partnerCount[k1]=(partnerCount[k1]||0)+1;
-      partnerCount[k2]=(partnerCount[k2]||0)+1;
-      [manA,womanA,manB,womanB].forEach(id => gamesCount[id]=(gamesCount[id]||0)+1);
-    }
-    schedule.push(round);
+// ============== SCHEDULE GENERATORS (MEXICANO) ==============
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
   }
-  return schedule;
+  return a;
+}
+
+function generateRound1(players) {
+  const src = players || state.players;
+  const men   = shuffle(src.filter(p => p.gender === 'm'));
+  const women = shuffle(src.filter(p => p.gender === 'w'));
+  const courts = Math.min(NUM_COURTS, Math.floor(men.length / 2), Math.floor(women.length / 2));
+  const round = [];
+  for (let c = 0; c < courts; c++) {
+    const i = c * 2;
+    round.push([men[i].id, women[i].id, men[i+1].id, women[i+1].id]);
+  }
+  return round;
+}
+
+function generateMexicanoRound() {
+  const stats = computeStats();
+  function rankSort(list) {
+    return [...list].sort((a, b) => {
+      const sa = stats[a.id] || { pts: 0, w: 0, games: 0 };
+      const sb = stats[b.id] || { pts: 0, w: 0, games: 0 };
+      if (sb.pts !== sa.pts) return sb.pts - sa.pts;
+      if (sb.w  !== sa.w)   return sb.w  - sa.w;
+      return (sa.games || 0) - (sb.games || 0);
+    });
+  }
+  const rankedMen   = rankSort(getMen());
+  const rankedWomen = rankSort(getWomen());
+  const courts = Math.min(NUM_COURTS, Math.floor(rankedMen.length / 2), Math.floor(rankedWomen.length / 2));
+  const round = [];
+  for (let c = 0; c < courts; c++) {
+    const i = c * 2;
+    round.push([rankedMen[i].id, rankedWomen[i].id, rankedMen[i+1].id, rankedWomen[i+1].id]);
+  }
+  return round;
+}
+
+function initSchedule(players) {
+  const sched = Array.from({ length: NUM_ROUNDS }, () => []);
+  sched[0] = generateRound1(players);
+  return sched;
+}
+
+function migrateScheduleToMexicano(s) {
+  const lockedIdxs = Object.keys(s.locked || {}).map(Number);
+  const firstUnlocked = lockedIdxs.length ? Math.max(...lockedIdxs) + 1 : 0;
+  const oldSched = s.schedule || [];
+  s.schedule = Array.from({ length: NUM_ROUNDS }, (_, r) =>
+    r < firstUnlocked ? (Array.isArray(oldSched[r]) ? oldSched[r] : []) : []
+  );
+  if (firstUnlocked < NUM_ROUNDS) {
+    s.schedule[firstUnlocked] = generateRound1(s.players);
+  }
+  s.mexicano = true;
+  return s;
 }
 
 // ============== STATE ==============
@@ -406,12 +430,19 @@ function loadState() {
       }
       if (!p.subs)    p.subs    = {};
       if (!p.players) p.players = [...DEFAULT_PLAYERS];
-      if (!p.schedule || !p.schedule.length) p.schedule = generateSchedule(p.players);
+      if (!p.scores)  p.scores  = {};
+      if (!p.locked)  p.locked  = {};
+      // Migrate old pre-generated schedule to Mexicano on-demand format
+      if (!p.mexicano) p = migrateScheduleToMexicano(p);
+      // Ensure schedule is valid array of NUM_ROUNDS
+      if (!Array.isArray(p.schedule)) p.schedule = initSchedule(p.players);
+      while (p.schedule.length < NUM_ROUNDS) p.schedule.push([]);
+      p.schedule = p.schedule.map(r => Array.isArray(r) ? r : []);
       return p;
     }
   } catch(e) {}
   const players = [...DEFAULT_PLAYERS];
-  return { players, schedule: generateSchedule(players), scores: {}, locked: {}, subs: {} };
+  return { players, schedule: initSchedule(players), scores: {}, locked: {}, subs: {}, mexicano: true };
 }
 
 function saveState() {
@@ -490,18 +521,23 @@ function removePlayer(id) {
 }
 
 function applyPlayerChange() {
-  // Find first unlocked round index
   const lockedIdxs = Object.keys(state.locked).map(Number);
   const firstUnlocked = lockedIdxs.length ? Math.max(...lockedIdxs) + 1 : 0;
-  const fresh = generateSchedule(state.players);
 
-  if (!state.schedule) state.schedule = [];
+  if (!Array.isArray(state.schedule)) state.schedule = Array.from({ length: NUM_ROUNDS }, () => []);
+  // Clear all unlocked rounds and their data
   for (let r = firstUnlocked; r < NUM_ROUNDS; r++) {
-    state.schedule[r] = fresh[r] || [];
+    state.schedule[r] = [];
     for (let m = 0; m < NUM_COURTS; m++) {
       delete state.scores[`${r}-${m}`];
       if (state.subs) [0,1,2,3].forEach(pos => delete state.subs[`${r}-${m}-${pos}`]);
     }
+  }
+  // Generate the first unlocked round
+  if (firstUnlocked < NUM_ROUNDS) {
+    state.schedule[firstUnlocked] = firstUnlocked === 0
+      ? generateRound1(state.players)
+      : generateMexicanoRound();
   }
   if (currentRound < firstUnlocked) currentRound = firstUnlocked;
   if (currentRound >= NUM_ROUNDS) currentRound = NUM_ROUNDS - 1;
@@ -574,20 +610,32 @@ function subscribeToFirebase() {
   window._fb.onValue(window._fb.ref(window._fb.db, 'tournament'), snapshot => {
     let remote = snapshot.val();
 
-    // Firebase empty or has old format (names[] instead of players[]) →
-    // push our current migrated state up to Firebase and don't overwrite local state
+    // Firebase empty or has very old format (names[] instead of players[]) →
+    // push our current migrated state up and don't overwrite local state
     if (!remote || (remote.names && !remote.players)) {
       window._fb.set(window._fb.ref(window._fb.db, 'tournament'), state).catch(() => {});
       return;
     }
 
-    // Ensure required fields on remote state (Firebase omits empty objects/arrays)
+    // Ensure required fields (Firebase omits empty objects/arrays)
     if (!remote.scores)  remote.scores  = {};
     if (!remote.locked)  remote.locked  = {};
     if (!remote.subs)    remote.subs    = {};
     if (!remote.players) remote.players = [...DEFAULT_PLAYERS];
-    if (!remote.schedule || !remote.schedule.length)
-      remote.schedule = generateSchedule(remote.players);
+
+    // Migrate old pre-generated schedule to Mexicano on-demand format
+    if (!remote.mexicano) {
+      remote = migrateScheduleToMexicano(remote);
+      window._fb.set(window._fb.ref(window._fb.db, 'tournament'), remote).catch(() => {});
+    }
+
+    // Normalize schedule array (Firebase may omit empty entries)
+    if (!Array.isArray(remote.schedule)) {
+      remote.schedule = initSchedule(remote.players);
+    } else {
+      while (remote.schedule.length < NUM_ROUNDS) remote.schedule.push([]);
+      remote.schedule = remote.schedule.map(r => Array.isArray(r) ? r : []);
+    }
 
     if (JSON.stringify(remote) !== JSON.stringify(state)) {
       state = remote;
@@ -614,11 +662,17 @@ function renderRoundNav() {
   nav.innerHTML = '';
   for (let i = 0; i < NUM_ROUNDS; i++) {
     const pill = document.createElement('button');
-    pill.className = 'round-pill' + (i === currentRound ? ' active' : '');
     const matches   = state.schedule?.[i] || [];
+    const isTBD     = matches.length === 0;
     const doneCount = matches.filter((_, mi) => state.scores[`${i}-${mi}`]).length;
-    if (matches.length && doneCount === matches.length) pill.classList.add('complete');
-    pill.textContent = `R${i+1}` + (matches.length && doneCount === matches.length ? ' ✓' : '');
+    const isComplete = !isTBD && doneCount === matches.length && !!state.locked[i];
+    pill.className = 'round-pill'
+      + (i === currentRound ? ' active' : '')
+      + (isTBD ? ' tbd' : '')
+      + (isComplete ? ' complete' : '');
+    pill.textContent = isTBD
+      ? `R${i+1} ?`
+      : `R${i+1}${isComplete ? ' ✓' : ''}`;
     pill.onclick = () => { currentRound = i; renderAll(); };
     nav.appendChild(pill);
   }
@@ -631,7 +685,12 @@ function renderRound() {
   const isLocked = !!state.locked[currentRound];
 
   if (!matches.length) {
-    container.innerHTML = '<div class="empty">No matches scheduled for this round.<br>Add more players to fill it.</div>';
+    const prevLabel = currentRound > 0 ? `Round ${currentRound}` : 'the previous round';
+    container.innerHTML = `<div class="empty" style="padding:48px 20px">
+      <div style="font-size:28px;margin-bottom:12px">⏳</div>
+      <div style="font-family:'Fraunces',serif;font-style:italic;font-size:20px;margin-bottom:8px">Round ${currentRound + 1}</div>
+      <div>Pairings will be generated automatically<br>after <strong style="color:var(--ink)">${prevLabel}</strong> is submitted &amp; locked.</div>
+    </div>`;
     return;
   }
 
@@ -720,6 +779,12 @@ function saveRound(rIdx, evt) {
     };
   });
   state.locked[rIdx] = true;
+  // Generate next round based on updated standings (Mexicano dynamic pairing)
+  if (rIdx + 1 < NUM_ROUNDS && !state.locked[rIdx + 1]) {
+    state.schedule[rIdx + 1] = generateMexicanoRound();
+  }
+  // Auto-advance to the next round
+  if (rIdx + 1 < NUM_ROUNDS) currentRound = rIdx + 1;
   saveState();
 
   if (evt) {
@@ -869,7 +934,7 @@ function resetAll() {
   if (!confirm('Reset everything? All scores and players reset to defaults.')) return;
   try { localStorage.removeItem('padel-mixicano-v1'); } catch(e) {}
   const players = [...DEFAULT_PLAYERS];
-  state = { players, schedule: generateSchedule(players), scores: {}, locked: {}, subs: {} };
+  state = { players, schedule: initSchedule(players), scores: {}, locked: {}, subs: {}, mexicano: true };
   saveState();
   currentRound = 0; currentLB = 'all';
   document.querySelector('.lb-tab[data-lb="all"]').classList.add('active');
