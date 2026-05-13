@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Padel Mixicano — Team Building</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;800&family=JetBrains+Mono:wght@400;600&family=Fraunces:ital,wght@0,400;0,700;1,700&display=swap" rel="stylesheet">
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js";
+  const firebaseConfig = {
+    apiKey:            "AIzaSyBHcGzNNVzDvMZYP8GJlT626YuAxg2BmE8",
+    authDomain:        "padel-mixicano.firebaseapp.com",
+    databaseURL:       "https://padel-mixicano-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId:         "padel-mixicano",
+    storageBucket:     "padel-mixicano.firebasestorage.app",
+    messagingSenderId: "409913207302",
+    appId:             "1:409913207302:web:86a9847bdc54c84272b187"
+  };
+  try {
+    const app = initializeApp(firebaseConfig);
+    const db  = getDatabase(app);
+    window._fb = { db, ref, set, onValue, connected: true };
+    window.dispatchEvent(new CustomEvent('firebase-ready'));
+  } catch(e) {
+    console.warn('Firebase offline:', e.message);
+    window._fb = { connected: false };
+  }
+</script>
+
+<style>
+  :root {
+    --bg: #0a0e0a; --surface: #131a13; --surface-2: #1a221a;
+    --line: #2a3528; --ink: #ecf0e8; --muted: #8a9888;
+    --lime: #d4ff3a; --lime-dim: #a8cc2e; --clay: #d97757;
+    --gold: #f4c430; --pink: #ff8db0; --blue: #7ec8ff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--bg); color: var(--ink); font-family: 'Bricolage Grotesque', sans-serif; min-height: 100vh; -webkit-tap-highlight-color: transparent; }
+  body { background-image: radial-gradient(circle at 20% 10%, rgba(212,255,58,0.06), transparent 40%), radial-gradient(circle at 80% 90%, rgba(255,141,176,0.05), transparent 40%); }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 24px 18px 80px; }
+
+  header { border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 24px; }
+  .eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.2em; color: var(--lime); text-transform: uppercase; margin-bottom: 8px; }
+  h1 { font-family: 'Fraunces', serif; font-size: clamp(38px,9vw,60px); font-style: italic; font-weight: 700; line-height: 0.95; letter-spacing: -0.02em; }
+  h1 .accent { color: var(--lime); font-style: normal; font-family: 'Bricolage Grotesque'; font-weight: 800; }
+  .sub { margin-top: 10px; color: var(--muted); font-size: 14px; font-family: 'JetBrains Mono', monospace; }
+  .sub strong { color: var(--ink); font-weight: 600; }
+  .sync-status { display: inline-flex; align-items: center; gap: 5px; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.15em; color: var(--muted); margin-top: 10px; text-transform: uppercase; }
+  .sync-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); transition: background 0.4s; }
+  .sync-dot.live { background: var(--lime); box-shadow: 0 0 7px var(--lime); }
+
+  .tabs { display: flex; gap: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 5px; margin-bottom: 22px; position: sticky; top: 10px; z-index: 50; backdrop-filter: blur(10px); }
+  .tab { flex: 1; background: transparent; border: 0; color: var(--muted); font-family: inherit; font-weight: 600; font-size: 13px; padding: 10px 8px; border-radius: 10px; cursor: pointer; transition: all 0.2s; }
+  .tab.active { background: var(--lime); color: #0a0e0a; }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px; margin-bottom: 14px; }
+  .card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .court-tag { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.15em; color: var(--lime); text-transform: uppercase; }
+  .round-num { font-family: 'Fraunces', serif; font-style: italic; font-size: 24px; color: var(--muted); }
+
+  .match { background: var(--surface-2); border-radius: 12px; padding: 14px; margin-bottom: 10px; }
+  .match.done { opacity: 0.55; }
+  .match.locked { opacity: 1; border: 1px solid var(--lime-dim); background: linear-gradient(180deg, rgba(212,255,58,0.04), var(--surface-2)); }
+  .match.locked .score-input { background: transparent; border-color: transparent; color: var(--lime); pointer-events: none; }
+  .lock-badge { display: inline-flex; align-items: center; gap: 4px; font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.15em; color: var(--lime); text-transform: uppercase; margin-left: auto; }
+  .court-label-row { display: flex; align-items: center; margin-bottom: 10px; }
+  .court-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.2em; color: var(--clay); text-transform: uppercase; }
+  .team-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 8px 0; }
+  .team-row + .team-row { border-top: 1px dashed var(--line); }
+  .players { font-size: 15px; font-weight: 600; line-height: 1.3; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+  .player-m { color: var(--blue); }
+  .player-w { color: var(--pink); }
+  .vs-mark { font-family: 'Fraunces', serif; font-style: italic; color: var(--muted); text-align: center; font-size: 12px; padding: 4px 0; }
+  .score-input { width: 56px; background: var(--bg); border: 1px solid var(--line); color: var(--ink); font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 600; text-align: center; border-radius: 8px; padding: 8px 4px; }
+  .score-input:focus { outline: none; border-color: var(--lime); }
+  .resting { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); font-family: 'JetBrains Mono', monospace; line-height: 1.7; }
+  .resting span.player-m { color: var(--blue); }
+  .resting span.player-w { color: var(--pink); }
+
+  /* Substitution button — player names become tappable in unlocked rounds */
+  .sub-btn {
+    background: transparent; border: none; font-family: inherit;
+    font-size: 15px; font-weight: 600; padding: 1px 3px; border-radius: 4px;
+    cursor: pointer; border-bottom: 1px dotted currentColor;
+    transition: opacity 0.15s;
+  }
+  .sub-btn:hover { opacity: 0.7; }
+  .sub-btn.subbed::after { content: ' ↺'; font-size: 11px; opacity: 0.6; }
+
+  .save-btn { width: 100%; margin-top: 12px; background: var(--lime); color: #0a0e0a; border: 0; padding: 12px; font-family: inherit; font-weight: 700; font-size: 14px; border-radius: 10px; cursor: pointer; letter-spacing: 0.02em; }
+  .save-btn:disabled { background: var(--surface-2); color: var(--muted); cursor: default; }
+  .save-btn.saved { background: var(--surface-2); color: var(--lime-dim); }
+  .unlock-btn { width: 100%; margin-top: 12px; background: transparent; color: var(--muted); border: 1px dashed var(--line); padding: 10px; font-family: inherit; font-weight: 600; font-size: 12px; border-radius: 10px; cursor: pointer; }
+  .unlock-btn:hover { color: var(--clay); border-color: var(--clay); }
+
+  .round-nav { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 16px; scrollbar-width: none; }
+  .round-nav::-webkit-scrollbar { display: none; }
+  .round-pill { flex-shrink: 0; background: var(--surface); border: 1px solid var(--line); color: var(--muted); padding: 8px 14px; border-radius: 999px; font-family: 'JetBrains Mono', monospace; font-size: 12px; cursor: pointer; }
+  .round-pill.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .round-pill.complete { border-color: var(--lime); color: var(--lime); }
+
+  .lb-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+  .lb-tab { flex: 1; background: var(--surface); border: 1px solid var(--line); color: var(--muted); padding: 9px; border-radius: 10px; font-family: inherit; font-weight: 600; font-size: 12px; cursor: pointer; }
+  .lb-tab.active { background: var(--surface-2); color: var(--ink); border-color: var(--ink); }
+  .lb-row { display: grid; grid-template-columns: 30px 1fr auto auto; gap: 10px; align-items: center; padding: 12px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 6px; transition: all 0.3s; animation: pop 0.3s ease-out; }
+  .lb-rank { font-family: 'Fraunces', serif; font-style: italic; font-size: 22px; color: var(--muted); font-weight: 700; }
+  .lb-name { font-weight: 600; font-size: 15px; }
+  .lb-games { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); }
+  .lb-pts { font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 600; color: var(--lime); min-width: 50px; text-align: right; }
+  .lb-row.gold { border-color: var(--gold); background: linear-gradient(90deg, rgba(244,196,48,0.08), transparent); }
+  .lb-row.gold .lb-rank { color: var(--gold); }
+  .lb-row.silver { border-color: #c0c0c0; }
+  .lb-row.silver .lb-rank { color: #c0c0c0; }
+  .lb-row.bronze { border-color: var(--clay); }
+  .lb-row.bronze .lb-rank { color: var(--clay); }
+
+  /* Players tab */
+  .player-row { display: grid; grid-template-columns: 30px 20px 1fr auto; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .player-row input { background: var(--surface); border: 1px solid var(--line); color: var(--ink); padding: 10px 12px; border-radius: 10px; font-family: inherit; font-size: 14px; width: 100%; }
+  .player-row input:focus { outline: none; border-color: var(--lime); }
+  .name-num { font-family: 'JetBrains Mono', monospace; color: var(--muted); font-size: 12px; text-align: center; }
+  .gender-dot { width: 12px; height: 12px; border-radius: 50%; justify-self: center; }
+  .gender-dot.m { background: var(--blue); }
+  .gender-dot.w { background: var(--pink); }
+  .remove-btn { background: transparent; border: 1px solid var(--line); color: var(--muted); width: 32px; height: 32px; border-radius: 8px; cursor: pointer; font-size: 15px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .remove-btn:hover { color: var(--clay); border-color: var(--clay); }
+
+  .section-title { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.2em; color: var(--muted); text-transform: uppercase; margin: 18px 0 10px; }
+  .section-title-row { display: flex; align-items: center; justify-content: space-between; margin: 18px 0 10px; }
+  .add-player-btn { background: transparent; border: 1px dashed var(--line); color: var(--muted); padding: 6px 10px; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em; cursor: pointer; }
+  .add-player-btn:hover { border-color: var(--lime); color: var(--lime); }
+
+  .info { background: var(--surface-2); border-left: 3px solid var(--lime); padding: 14px 16px; border-radius: 8px; margin-bottom: 18px; font-size: 13px; line-height: 1.55; color: var(--muted); }
+  .info strong { color: var(--ink); }
+  .reset { width: 100%; background: transparent; border: 1px solid var(--line); color: var(--muted); padding: 12px; border-radius: 10px; font-family: inherit; font-size: 13px; cursor: pointer; margin-top: 20px; }
+  .reset:hover { color: var(--clay); border-color: var(--clay); }
+  .empty { text-align: center; padding: 40px 20px; color: var(--muted); font-style: italic; font-family: 'Fraunces', serif; }
+  .hidden { display: none; }
+
+  .stats-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+  .stat { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 8px; text-align: center; }
+  .stat-num { font-family: 'Fraunces', serif; font-style: italic; font-size: 22px; font-weight: 700; color: var(--lime); }
+  .stat-lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.15em; color: var(--muted); text-transform: uppercase; margin-top: 2px; }
+
+  @keyframes pop { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+  /* ── Modals (shared) ── */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(10,14,10,0.78); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.hidden { display: none; }
+  .modal-card { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 22px; max-width: 380px; width: 100%; animation: modalPop 0.3s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+  @keyframes modalPop { from { transform: scale(0.92) translateY(12px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
+  .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .modal-title { font-weight: 700; font-size: 16px; }
+  .modal-close { background: var(--surface-2); border: 1px solid var(--line); color: var(--muted); width: 28px; height: 28px; border-radius: 50%; cursor: pointer; font-size: 17px; line-height: 1; display: flex; align-items: center; justify-content: center; }
+  .modal-close:hover { color: var(--clay); border-color: var(--clay); }
+  .modal-hint { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); letter-spacing: 0.08em; margin-bottom: 12px; }
+
+  /* Sub modal player list */
+  .sub-player-btn { width: 100%; background: var(--surface-2); border: 1px solid var(--line); color: var(--ink); border-radius: 10px; padding: 11px 14px; margin-bottom: 6px; cursor: pointer; font-family: inherit; display: flex; align-items: center; justify-content: space-between; transition: border-color 0.15s; }
+  .sub-player-btn:hover { border-color: var(--lime); }
+  .sub-player-btn.is-current { border-color: var(--lime); background: rgba(212,255,58,0.06); }
+  .sub-player-btn.is-busy { opacity: 0.45; cursor: default; }
+  .sub-status { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); letter-spacing: 0.06em; }
+
+  /* Add player modal */
+  .modal-input { width: 100%; background: var(--surface-2); border: 1px solid var(--line); color: var(--ink); padding: 12px; border-radius: 10px; font-family: inherit; font-size: 15px; margin-bottom: 12px; }
+  .modal-input:focus { outline: none; border-color: var(--lime); }
+  .gender-toggle { display: flex; gap: 8px; margin-bottom: 14px; }
+  .gender-btn { flex: 1; background: var(--surface-2); border: 1px solid var(--line); color: var(--muted); padding: 10px; border-radius: 10px; font-family: inherit; font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.15s; }
+  .gender-btn.active.m { background: rgba(126,200,255,0.12); border-color: var(--blue); color: var(--blue); }
+  .gender-btn.active.w { background: rgba(255,141,176,0.12); border-color: var(--pink); color: var(--pink); }
+  .modal-submit { width: 100%; background: var(--lime); color: #0a0e0a; border: 0; padding: 12px; font-family: inherit; font-weight: 700; font-size: 14px; border-radius: 10px; cursor: pointer; }
+
+  /* ── Celebration ── */
+  .celeb-overlay { position: fixed; inset: 0; background: rgba(10,14,10,0.88); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; overflow-y: auto; }
+  .celeb-overlay.hidden { display: none; }
+  .celeb-card { background: var(--surface); border: 1px solid var(--line); border-radius: 24px; padding: 32px 24px 28px; max-width: 440px; width: 100%; text-align: center; position: relative; z-index: 201; animation: celebUp 0.55s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+  @keyframes celebUp { from { transform: translateY(60px) scale(0.93); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
+  .celeb-close { position: absolute; top: 14px; right: 14px; background: var(--surface-2); border: 1px solid var(--line); color: var(--muted); width: 30px; height: 30px; border-radius: 50%; cursor: pointer; font-size: 18px; line-height: 1; display: flex; align-items: center; justify-content: center; }
+  .celeb-close:hover { color: var(--clay); border-color: var(--clay); }
+  .celeb-eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.25em; color: var(--lime); text-transform: uppercase; margin-bottom: 8px; }
+  .celeb-title { font-family: 'Fraunces', serif; font-style: italic; font-size: clamp(34px,8vw,50px); font-weight: 700; line-height: 0.95; letter-spacing: -0.02em; margin-bottom: 6px; }
+  .celeb-sub { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.15em; color: var(--muted); }
+  .celeb-divider { border: none; border-top: 1px solid var(--line); margin: 20px 0; }
+  .celeb-royals { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .celeb-royal { background: var(--surface-2); border-radius: 14px; padding: 16px 10px; position: relative; overflow: hidden; }
+  .celeb-royal::before { content: ''; position: absolute; inset: 0; border-radius: 14px; opacity: 0.05; }
+  .celeb-royal.king::before { background: var(--blue); }
+  .celeb-royal.queen::before { background: var(--pink); }
+  .celeb-crown { font-size: 28px; line-height: 1; margin-bottom: 6px; }
+  .celeb-royal-lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.2em; color: var(--muted); text-transform: uppercase; margin-bottom: 4px; }
+  .celeb-royal-name { font-weight: 700; font-size: 17px; margin-bottom: 2px; }
+  .celeb-royal-pts { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--lime); }
+  .celeb-stats { display: flex; flex-direction: column; gap: 8px; text-align: left; }
+  .celeb-stat-row { background: var(--surface-2); border-radius: 12px; padding: 12px 14px; }
+  .celeb-stat-lbl { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.2em; color: var(--muted); text-transform: uppercase; margin-bottom: 5px; }
+  .celeb-stat-val { font-size: 15px; font-weight: 700; line-height: 1.3; }
+  .celeb-stat-hint { font-size: 12px; color: var(--muted); margin-top: 2px; font-family: 'JetBrains Mono', monospace; }
+  .celeb-total-row { background: var(--surface-2); border-radius: 12px; padding: 14px; text-align: center; }
+  .celeb-total-num { font-family: 'Fraunces', serif; font-style: italic; font-size: 44px; font-weight: 700; color: var(--lime); line-height: 1; display: block; }
+  .celeb-total-lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.15em; color: var(--muted); text-transform: uppercase; margin-top: 4px; }
+  .celeb-btn { width: 100%; background: var(--lime); color: #0a0e0a; border: 0; padding: 14px; font-family: inherit; font-weight: 700; font-size: 14px; border-radius: 12px; cursor: pointer; letter-spacing: 0.02em; transition: transform 0.1s; }
+  .celeb-btn:active { transform: scale(0.97); }
+  .celeb-replay { width: 100%; background: transparent; border: 1px dashed var(--line); color: var(--muted); padding: 10px; font-family: inherit; font-weight: 600; font-size: 12px; border-radius: 10px; cursor: pointer; margin-top: 8px; }
+  .celeb-replay:hover { color: var(--lime); border-color: var(--lime); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">— Team Building 2026</div>
+    <h1>Padel <span class="accent">/Mixicano</span></h1>
+    <div class="sub" id="header-sub"></div>
+    <div class="sync-status">
+      <span class="sync-dot" id="sync-dot"></span>
+      <span id="sync-label">LOCAL</span>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="schedule">Schedule</button>
+    <button class="tab" data-tab="leaderboard">Leaderboard</button>
+    <button class="tab" data-tab="players">Players</button>
+  </div>
+
+  <section id="tab-schedule">
+    <div class="info"><strong>Mixicano format:</strong> Every match is mixed doubles. Partners rotate every round. Play to <strong>16 points</strong> or <strong>12 minutes</strong>. Tap a player name to substitute them.</div>
+    <div class="stats-strip">
+      <div class="stat"><div class="stat-num" id="stat-round">1</div><div class="stat-lbl">Current Round</div></div>
+      <div class="stat"><div class="stat-num" id="stat-done">0</div><div class="stat-lbl">Matches Done</div></div>
+      <div class="stat"><div class="stat-num" id="stat-total">—</div><div class="stat-lbl">Total Matches</div></div>
+    </div>
+    <div class="round-nav" id="round-nav"></div>
+    <div id="rounds-container"></div>
+  </section>
+
+  <section id="tab-leaderboard" class="hidden">
+    <div class="info">Points = total points won across all matches.</div>
+    <div class="lb-tabs">
+      <button class="lb-tab active" data-lb="all">Overall</button>
+      <button class="lb-tab" data-lb="m">Men</button>
+      <button class="lb-tab" data-lb="w">Women</button>
+    </div>
+    <div id="leaderboard"></div>
+  </section>
+
+  <section id="tab-players" class="hidden">
+    <div class="info">Edit names inline. <strong>Add or remove players</strong> — the schedule regenerates automatically for all unlocked rounds.</div>
+    <div id="players-list"></div>
+    <button class="reset" onclick="resetAll()">↺ Reset entire tournament</button>
+  </section>
+</div>
+
+<!-- Substitution Modal -->
+<div id="sub-modal" class="modal-overlay hidden">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div class="modal-title">Substitute Player</div>
+      <button class="modal-close" onclick="closeSubModal()">×</button>
+    </div>
+    <div class="modal-hint">Replacing: <span id="sub-replacing" style="color:var(--ink);font-weight:700">—</span></div>
+    <div id="sub-player-list"></div>
+  </div>
+</div>
+
+<!-- Add Player Modal -->
+<div id="add-modal" class="modal-overlay hidden">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div class="modal-title">Add Player</div>
+      <button class="modal-close" onclick="closeAddModal()">×</button>
+    </div>
+    <input type="text" id="new-name" class="modal-input" placeholder="Player name" />
+    <div class="gender-toggle">
+      <button class="gender-btn m active" id="add-gender-m" onclick="selectGender('m')">♂ Man</button>
+      <button class="gender-btn w" id="add-gender-w" onclick="selectGender('w')">♀ Woman</button>
+    </div>
+    <button class="modal-submit" onclick="confirmAddPlayer()">Add to Tournament</button>
+  </div>
+</div>
+
+<!-- Celebration Overlay -->
+<div id="celebration" class="celeb-overlay hidden">
+  <div class="celeb-card">
+    <button class="celeb-close" onclick="closeCelebration(false)">×</button>
+    <div class="celeb-eyebrow">✦ All rounds complete ✦</div>
+    <div class="celeb-title">Tournament<br>Complete</div>
+    <div class="celeb-sub">Team Building 2026 · Surabaya</div>
+    <hr class="celeb-divider">
+    <div class="celeb-royals">
+      <div class="celeb-royal king">
+        <div class="celeb-crown">👑</div>
+        <div class="celeb-royal-lbl">King</div>
+        <div class="celeb-royal-name" id="celeb-king" style="color:var(--blue)">—</div>
+        <div class="celeb-royal-pts" id="celeb-king-pts">—</div>
+      </div>
+      <div class="celeb-royal queen">
+        <div class="celeb-crown">👑</div>
+        <div class="celeb-royal-lbl">Queen</div>
+        <div class="celeb-royal-name" id="celeb-queen" style="color:var(--pink)">—</div>
+        <div class="celeb-royal-pts" id="celeb-queen-pts">—</div>
+      </div>
+    </div>
+    <hr class="celeb-divider">
+    <div class="celeb-stats">
+      <div class="celeb-stat-row">
+        <div class="celeb-stat-lbl">🤝 Best Duo</div>
+        <div class="celeb-stat-val" id="celeb-duo">—</div>
+        <div class="celeb-stat-hint" id="celeb-duo-hint">—</div>
+      </div>
+      <div class="celeb-stat-row">
+        <div class="celeb-stat-lbl">💥 Biggest Win</div>
+        <div class="celeb-stat-val" id="celeb-bigwin">—</div>
+        <div class="celeb-stat-hint" id="celeb-bigwin-hint">—</div>
+      </div>
+      <div class="celeb-total-row">
+        <div class="celeb-stat-lbl">⚡ Total Points Scored Tonight</div>
+        <span class="celeb-total-num" id="celeb-total-num">—</span>
+        <div class="celeb-total-lbl">points across all matches</div>
+      </div>
+    </div>
+    <hr class="celeb-divider">
+    <button class="celeb-btn" onclick="closeCelebration(true)">View Final Leaderboard 🏆</button>
+    <button class="celeb-replay" onclick="spawnConfetti()">🎊 Confetti again</button>
+  </div>
+</div>
+
+<script>
+// ============== CONSTANTS ==============
+const NUM_COURTS = 3;
+const NUM_ROUNDS = 8;
+
+const DEFAULT_PLAYERS = [
+  {id:1,name:'Marcell',gender:'m'},{id:2,name:'Ricky',gender:'m'},
+  {id:3,name:'Sam',gender:'m'},   {id:4,name:'Farrel',gender:'m'},
+  {id:5,name:'Ali',gender:'m'},   {id:6,name:'Ibul',gender:'m'},
+  {id:7,name:'Fandhi',gender:'m'},{id:8,name:'Rizuan',gender:'m'},
+  {id:9,name:'Savv',gender:'w'},  {id:10,name:'Febi',gender:'w'},
+  {id:11,name:'Angel',gender:'w'},{id:12,name:'Tina',gender:'w'},
+  {id:13,name:'Bella',gender:'w'},{id:14,name:'Julia',gender:'w'},
+  {id:15,name:'Early',gender:'w'},{id:16,name:'Nindy',gender:'w'},
+  {id:17,name:'Cintya',gender:'w'},{id:18,name:'Atikah',gender:'w'},
+  {id:19,name:'Vandella',gender:'w'}
+];
+
+// ============== SCHEDULE GENERATOR ==============
+function generateSchedule(players) {
+  const men   = players.filter(p => p.gender === 'm').map(p => p.id);
+  const women = players.filter(p => p.gender === 'w').map(p => p.id);
+  const courts = Math.min(NUM_COURTS, Math.floor(men.length / 2), Math.floor(women.length / 2));
+  if (courts === 0) return Array.from({length: NUM_ROUNDS}, () => []);
+
+  const schedule = [];
+  const partnerCount = {};
+  const gamesCount   = {};
+  players.forEach(p => gamesCount[p.id] = 0);
+
+  for (let r = 0; r < NUM_ROUNDS; r++) {
+    const round = [];
+    const used  = new Set();
+    const sortedM = [...men].sort((a,b)   => (gamesCount[a]||0)-(gamesCount[b]||0));
+    const sortedW = [...women].sort((a,b) => (gamesCount[a]||0)-(gamesCount[b]||0));
+
+    for (let c = 0; c < courts; c++) {
+      const manA = sortedM.find(m => !used.has(m));
+      if (!manA) break;
+      const womanA = sortedW.filter(w => !used.has(w))
+        .sort((a,b) => (partnerCount[`${manA}-${a}`]||0)-(partnerCount[`${manA}-${b}`]||0))[0];
+      if (!womanA) break;
+      const manB = sortedM.find(m => !used.has(m) && m !== manA);
+      if (!manB) break;
+      const womanB = sortedW.filter(w => !used.has(w) && w !== womanA)
+        .sort((a,b) => (partnerCount[`${manB}-${a}`]||0)-(partnerCount[`${manB}-${b}`]||0))[0];
+      if (!womanB) break;
+
+      used.add(manA); used.add(womanA); used.add(manB); used.add(womanB);
+      round.push([manA, womanA, manB, womanB]);
+      const k1=`${manA}-${womanA}`, k2=`${manB}-${womanB}`;
+      partnerCount[k1]=(partnerCount[k1]||0)+1;
+      partnerCount[k2]=(partnerCount[k2]||0)+1;
+      [manA,womanA,manB,womanB].forEach(id => gamesCount[id]=(gamesCount[id]||0)+1);
+    }
+    schedule.push(round);
+  }
+  return schedule;
+}
+
+// ============== STATE ==============
+let state = loadState();
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem('padel-mixicano-v1');
+    if (raw) {
+      let p = JSON.parse(raw);
+      // Migrate old format (had names[] instead of players[])
+      if (p.names && !p.players) {
+        p = {
+          players: p.names.map((name, i) => ({id: i+1, name, gender: i < 8 ? 'm' : 'w'})),
+          schedule: null, scores: p.scores || {}, locked: p.locked || {}, subs: {}
+        };
+      }
+      if (!p.subs)    p.subs    = {};
+      if (!p.players) p.players = [...DEFAULT_PLAYERS];
+      if (!p.schedule || !p.schedule.length) p.schedule = generateSchedule(p.players);
+      return p;
+    }
+  } catch(e) {}
+  const players = [...DEFAULT_PLAYERS];
+  return { players, schedule: generateSchedule(players), scores: {}, locked: {}, subs: {} };
+}
+
+function saveState() {
+  try { localStorage.setItem('padel-mixicano-v1', JSON.stringify(state)); } catch(e) {}
+  if (window._fb && window._fb.connected)
+    window._fb.set(window._fb.ref(window._fb.db, 'tournament'), state).catch(() => {});
+}
+
+// ============== PLAYER HELPERS ==============
+function isMan(id)    { return state.players.find(p => p.id === id)?.gender === 'm'; }
+function getName(id)  { return state.players.find(p => p.id === id)?.name || `P${id}`; }
+function shortName(id){ const n = getName(id); return n.length > 12 ? n.substring(0,11)+'…' : n; }
+function getMen()     { return state.players.filter(p => p.gender === 'm'); }
+function getWomen()   { return state.players.filter(p => p.gender === 'w'); }
+
+function getMatchPlayer(r, m, pos) {
+  return state.subs?.[`${r}-${m}-${pos}`] ?? state.schedule?.[r]?.[m]?.[pos];
+}
+function getMatchPlayers(r, m) { return [0,1,2,3].map(pos => getMatchPlayer(r, m, pos)); }
+
+function getRestingInRound(r) {
+  const playing = new Set();
+  (state.schedule?.[r] || []).forEach((_, mi) => getMatchPlayers(r, mi).forEach(id => playing.add(id)));
+  return state.players.filter(p => !playing.has(p.id));
+}
+
+function playerHtml(id, r, m, pos, locked) {
+  const cls     = isMan(id) ? 'player-m' : 'player-w';
+  const name    = shortName(id);
+  const isSubbed = (state.subs?.[`${r}-${m}-${pos}`] !== undefined);
+  if (locked) return `<span class="${cls}">${name}${isSubbed ? ' ↺' : ''}</span>`;
+  return `<button class="sub-btn ${cls}${isSubbed ? ' subbed' : ''}" onclick="openSubModal(${r},${m},${pos})">${name}</button>`;
+}
+
+// ============== ADD / REMOVE PLAYERS ==============
+let _addGender = 'm';
+
+function openAddModal(gender) {
+  _addGender = gender || 'm';
+  document.getElementById('new-name').value = '';
+  document.getElementById('add-gender-m').classList.toggle('active', _addGender === 'm');
+  document.getElementById('add-gender-w').classList.toggle('active', _addGender === 'w');
+  document.getElementById('add-modal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('new-name').focus(), 80);
+}
+function closeAddModal() { document.getElementById('add-modal').classList.add('hidden'); }
+
+function selectGender(g) {
+  _addGender = g;
+  document.getElementById('add-gender-m').classList.toggle('active', g === 'm');
+  document.getElementById('add-gender-w').classList.toggle('active', g === 'w');
+}
+
+function confirmAddPlayer() {
+  const name = document.getElementById('new-name').value.trim();
+  if (!name) { document.getElementById('new-name').focus(); return; }
+  const id = Math.max(0, ...state.players.map(p => p.id)) + 1;
+  state.players.push({ id, name, gender: _addGender });
+  closeAddModal();
+  applyPlayerChange();
+}
+
+function removePlayer(id) {
+  const p = state.players.find(x => x.id === id);
+  if (!p) return;
+  const inLocked = Object.keys(state.locked).some(r =>
+    (state.schedule?.[+r] || []).some(match => match.includes(id))
+  );
+  const msg = inLocked
+    ? `Remove ${p.name}? Completed rounds keep their scores. Future rounds will regenerate.`
+    : `Remove ${p.name} from the tournament?`;
+  if (!confirm(msg)) return;
+  state.players = state.players.filter(x => x.id !== id);
+  if (state.subs) Object.keys(state.subs).forEach(k => { if (state.subs[k] === id) delete state.subs[k]; });
+  applyPlayerChange();
+}
+
+function applyPlayerChange() {
+  // Find first unlocked round index
+  const lockedIdxs = Object.keys(state.locked).map(Number);
+  const firstUnlocked = lockedIdxs.length ? Math.max(...lockedIdxs) + 1 : 0;
+  const fresh = generateSchedule(state.players);
+
+  if (!state.schedule) state.schedule = [];
+  for (let r = firstUnlocked; r < NUM_ROUNDS; r++) {
+    state.schedule[r] = fresh[r] || [];
+    for (let m = 0; m < NUM_COURTS; m++) {
+      delete state.scores[`${r}-${m}`];
+      if (state.subs) [0,1,2,3].forEach(pos => delete state.subs[`${r}-${m}-${pos}`]);
+    }
+  }
+  if (currentRound < firstUnlocked) currentRound = firstUnlocked;
+  if (currentRound >= NUM_ROUNDS) currentRound = NUM_ROUNDS - 1;
+  saveState();
+  renderAll();
+}
+
+// ============== SUBSTITUTION ==============
+let _subTarget = null;
+
+function openSubModal(r, m, pos) {
+  _subTarget = { r, m, pos };
+  const curId  = getMatchPlayer(r, m, pos);
+  const gender = isMan(curId) ? 'm' : 'w';
+
+  // players used elsewhere in this round
+  const usedElsewhere = new Set();
+  (state.schedule?.[r] || []).forEach((_, mi) => {
+    if (mi !== m) getMatchPlayers(r, mi).forEach(id => usedElsewhere.add(id));
+  });
+  // players already in THIS match at other positions
+  const inThisMatch = new Set([0,1,2,3].filter(p => p !== pos).map(p => getMatchPlayer(r, m, p)));
+
+  document.getElementById('sub-replacing').textContent = getName(curId);
+  const list = document.getElementById('sub-player-list');
+  list.innerHTML = '';
+
+  state.players.filter(p => p.gender === gender).forEach(p => {
+    const isCur   = p.id === curId;
+    const isBusy  = !isCur && (usedElsewhere.has(p.id) || inThisMatch.has(p.id));
+    const isOrig  = state.schedule?.[r]?.[m]?.[pos] === p.id;
+    const btn = document.createElement('button');
+    btn.className = `sub-player-btn${isCur ? ' is-current' : ''}${isBusy ? ' is-busy' : ''}`;
+    if (isBusy) btn.disabled = true;
+    const clr = p.gender === 'm' ? 'player-m' : 'player-w';
+    let status = isCur ? '✓ current' : (isBusy ? 'on court' : (isOrig ? 'original' : 'available'));
+    btn.innerHTML = `<span class="${clr}">${p.name}</span><span class="sub-status">${status}</span>`;
+    if (!isBusy) btn.onclick = () => applySub(r, m, pos, p.id);
+    list.appendChild(btn);
+  });
+
+  document.getElementById('sub-modal').classList.remove('hidden');
+}
+
+function applySub(r, m, pos, newId) {
+  if (!state.subs) state.subs = {};
+  const orig = state.schedule?.[r]?.[m]?.[pos];
+  if (newId === orig) delete state.subs[`${r}-${m}-${pos}`];
+  else state.subs[`${r}-${m}-${pos}`] = newId;
+  saveState();
+  closeSubModal();
+  renderAll();
+}
+
+function closeSubModal() {
+  document.getElementById('sub-modal').classList.add('hidden');
+  _subTarget = null;
+}
+
+// ============== FIREBASE ==============
+function setSyncStatus(live) {
+  document.getElementById('sync-dot')?.classList.toggle('live', live);
+  const lbl = document.getElementById('sync-label');
+  if (lbl) lbl.textContent = live ? 'LIVE SYNC' : 'LOCAL';
+}
+
+function subscribeToFirebase() {
+  if (!window._fb?.connected) return;
+  setSyncStatus(true);
+  window._fb.onValue(window._fb.ref(window._fb.db, 'tournament'), snapshot => {
+    let remote = snapshot.val();
+
+    // Firebase empty or has old format (names[] instead of players[]) →
+    // push our current migrated state up to Firebase and don't overwrite local state
+    if (!remote || (remote.names && !remote.players)) {
+      window._fb.set(window._fb.ref(window._fb.db, 'tournament'), state).catch(() => {});
+      return;
+    }
+
+    // Ensure required fields on remote state (Firebase omits empty objects/arrays)
+    if (!remote.scores)  remote.scores  = {};
+    if (!remote.locked)  remote.locked  = {};
+    if (!remote.subs)    remote.subs    = {};
+    if (!remote.players) remote.players = [...DEFAULT_PLAYERS];
+    if (!remote.schedule || !remote.schedule.length)
+      remote.schedule = generateSchedule(remote.players);
+
+    if (JSON.stringify(remote) !== JSON.stringify(state)) {
+      state = remote;
+      renderAll();
+    }
+  });
+}
+window.addEventListener('firebase-ready', subscribeToFirebase);
+
+// ============== RENDERING ==============
+let currentRound = 0;
+let currentLB    = 'all';
+
+function renderHeader() {
+  const men    = getMen().length;
+  const women  = getWomen().length;
+  const courts = Math.min(NUM_COURTS, Math.floor(men/2), Math.floor(women/2));
+  document.getElementById('header-sub').innerHTML =
+    `<strong>${men+women} players</strong> · <strong>${courts} courts</strong> · <strong>2 hours</strong> · ${NUM_ROUNDS} rounds · mixed doubles`;
+}
+
+function renderRoundNav() {
+  const nav = document.getElementById('round-nav');
+  nav.innerHTML = '';
+  for (let i = 0; i < NUM_ROUNDS; i++) {
+    const pill = document.createElement('button');
+    pill.className = 'round-pill' + (i === currentRound ? ' active' : '');
+    const matches   = state.schedule?.[i] || [];
+    const doneCount = matches.filter((_, mi) => state.scores[`${i}-${mi}`]).length;
+    if (matches.length && doneCount === matches.length) pill.classList.add('complete');
+    pill.textContent = `R${i+1}` + (matches.length && doneCount === matches.length ? ' ✓' : '');
+    pill.onclick = () => { currentRound = i; renderAll(); };
+    nav.appendChild(pill);
+  }
+}
+
+function renderRound() {
+  const container = document.getElementById('rounds-container');
+  container.innerHTML = '';
+  const matches  = state.schedule?.[currentRound] || [];
+  const isLocked = !!state.locked[currentRound];
+
+  if (!matches.length) {
+    container.innerHTML = '<div class="empty">No matches scheduled for this round.<br>Add more players to fill it.</div>';
+    return;
+  }
+
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML = `
+    <div class="card-head">
+      <div class="court-tag">Round ${currentRound+1} of ${NUM_ROUNDS}</div>
+      <div class="round-num">0${currentRound+1}</div>
+    </div>
+  `;
+
+  matches.forEach((match, mIdx) => {
+    const key   = `${currentRound}-${mIdx}`;
+    const score = state.scores[key];
+    const [p0,p1,p2,p3] = getMatchPlayers(currentRound, mIdx);
+
+    const matchEl = document.createElement('div');
+    matchEl.className = 'match' + (score ? ' done' : '') + (isLocked ? ' locked' : '');
+    matchEl.innerHTML = `
+      <div class="court-label-row">
+        <div class="court-label">Court ${mIdx+1}</div>
+        ${isLocked ? '<div class="lock-badge">🔒 Locked</div>' : ''}
+      </div>
+      <div class="team-row">
+        <div class="players">
+          ${playerHtml(p0, currentRound, mIdx, 0, isLocked)}
+          <span style="color:var(--muted)">+</span>
+          ${playerHtml(p1, currentRound, mIdx, 1, isLocked)}
+        </div>
+        <input type="number" min="0" max="30" class="score-input" id="sc-${key}-a" placeholder="—" value="${score ? score.a : ''}" ${isLocked ? 'disabled' : ''} />
+      </div>
+      <div class="vs-mark">vs</div>
+      <div class="team-row">
+        <div class="players">
+          ${playerHtml(p2, currentRound, mIdx, 2, isLocked)}
+          <span style="color:var(--muted)">+</span>
+          ${playerHtml(p3, currentRound, mIdx, 3, isLocked)}
+        </div>
+        <input type="number" min="0" max="30" class="score-input" id="sc-${key}-b" placeholder="—" value="${score ? score.b : ''}" ${isLocked ? 'disabled' : ''} />
+      </div>
+    `;
+    card.appendChild(matchEl);
+  });
+
+  if (!isLocked) {
+    const btn = document.createElement('button');
+    btn.className = 'save-btn';
+    btn.textContent = 'Submit & Lock Round';
+    btn.onclick = e => saveRound(currentRound, e);
+    card.appendChild(btn);
+  } else {
+    const btn = document.createElement('button');
+    btn.className = 'unlock-btn';
+    btn.textContent = '🔓 Unlock to edit';
+    btn.onclick = () => unlockRound(currentRound);
+    card.appendChild(btn);
+  }
+
+  const resting = getRestingInRound(currentRound);
+  if (resting.length) {
+    const r = document.createElement('div');
+    r.className = 'resting';
+    r.innerHTML = `<strong style="color:var(--clay)">RESTING</strong> · ` +
+      resting.map(p => `<span class="${p.gender==='m'?'player-m':'player-w'}">${shortName(p.id)}</span>`).join(' · ');
+    card.appendChild(r);
+  }
+  container.appendChild(card);
+}
+
+function saveRound(rIdx, evt) {
+  const matches = state.schedule?.[rIdx] || [];
+  const missing = [];
+  matches.forEach((_, mIdx) => {
+    const key = `${rIdx}-${mIdx}`;
+    if (!document.getElementById(`sc-${key}-a`)?.value ||
+        !document.getElementById(`sc-${key}-b`)?.value) missing.push(mIdx+1);
+  });
+  if (missing.length) { alert(`Missing scores for Court ${missing.join(', ')}`); return; }
+
+  matches.forEach((_, mIdx) => {
+    const key = `${rIdx}-${mIdx}`;
+    state.scores[key] = {
+      a: parseInt(document.getElementById(`sc-${key}-a`).value, 10),
+      b: parseInt(document.getElementById(`sc-${key}-b`).value, 10)
+    };
+  });
+  state.locked[rIdx] = true;
+  saveState();
+
+  if (evt) {
+    evt.target.textContent = '✓ Locked';
+    evt.target.classList.add('saved');
+    setTimeout(() => { renderAll(); checkTournamentComplete(); }, 500);
+  } else {
+    renderAll();
+    checkTournamentComplete();
+  }
+}
+
+function unlockRound(rIdx) {
+  if (!confirm(`Unlock Round ${rIdx+1} to edit scores?`)) return;
+  delete state.locked[rIdx];
+  saveState();
+  renderAll();
+}
+
+// ============== LEADERBOARD ==============
+function computeStats() {
+  const stats = {};
+  state.players.forEach(p => { stats[p.id] = { id: p.id, name: p.name, pts: 0, games: 0, w: 0, isMan: p.gender === 'm' }; });
+
+  for (let r = 0; r < NUM_ROUNDS; r++) {
+    const matches = state.schedule?.[r] || [];
+    for (let m = 0; m < matches.length; m++) {
+      const sc = state.scores[`${r}-${m}`];
+      if (!sc) continue;
+      const mp = getMatchPlayers(r, m);
+      mp.forEach(id => { if (!stats[id]) stats[id] = { id, name: getName(id), pts: 0, games: 0, w: 0, isMan: isMan(id) }; });
+      stats[mp[0]].pts += sc.a; stats[mp[1]].pts += sc.a;
+      stats[mp[2]].pts += sc.b; stats[mp[3]].pts += sc.b;
+      mp.forEach(id => stats[id].games++);
+      if (sc.a > sc.b) { stats[mp[0]].w++; stats[mp[1]].w++; }
+      else if (sc.b > sc.a) { stats[mp[2]].w++; stats[mp[3]].w++; }
+    }
+  }
+  return stats;
+}
+
+function renderLeaderboard() {
+  const lb = document.getElementById('leaderboard');
+  const stats = computeStats();
+  let sorted = Object.values(stats);
+  if (currentLB === 'm') sorted = sorted.filter(s => s.isMan);
+  else if (currentLB === 'w') sorted = sorted.filter(s => !s.isMan);
+  sorted.sort((a,b) => b.pts - a.pts || b.w - a.w || a.games - b.games);
+
+  if (!sorted.some(s => s.pts > 0)) {
+    lb.innerHTML = '<div class="empty">No scores yet.<br>Start playing — leaderboard fills up live.</div>';
+    return;
+  }
+  lb.innerHTML = '';
+  sorted.forEach((s, idx) => {
+    const row = document.createElement('div');
+    row.className = 'lb-row ' + (['gold','silver','bronze'][idx] || '');
+    row.innerHTML = `
+      <div class="lb-rank">${idx+1}</div>
+      <div>
+        <div class="lb-name" style="color:${s.isMan?'var(--blue)':'var(--pink)'}">${s.name}</div>
+        <div class="lb-games">${s.games} games · ${s.w} wins</div>
+      </div>
+      <div class="lb-pts">${s.pts}</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;">pts</div>
+    `;
+    lb.appendChild(row);
+  });
+}
+
+// ============== PLAYERS TAB ==============
+function renderPlayers() {
+  const list = document.getElementById('players-list');
+  list.innerHTML = '';
+
+  [['m','blue','Men'], ['w','pink','Women']].forEach(([g, color, label]) => {
+    const players = state.players.filter(p => p.gender === g);
+
+    const titleRow = document.createElement('div');
+    titleRow.className = 'section-title-row';
+    titleRow.innerHTML = `
+      <span class="section-title" style="margin:0"><span style="color:var(--${color})">●</span> ${label} (${players.length})</span>
+      <button class="add-player-btn" onclick="openAddModal('${g}')">+ Add ${label.slice(0,-1)}</button>
+    `;
+    list.appendChild(titleRow);
+
+    players.forEach(p => {
+      const row = document.createElement('div');
+      row.className = 'player-row';
+      row.innerHTML = `
+        <div class="name-num">${String(p.id).padStart(2,'0')}</div>
+        <div class="gender-dot ${g}"></div>
+        <input type="text" value="${p.name}" data-id="${p.id}" />
+        <button class="remove-btn" onclick="removePlayer(${p.id})" title="Remove">×</button>
+      `;
+      row.querySelector('input').addEventListener('input', e => {
+        const player = state.players.find(x => x.id === +e.target.dataset.id);
+        if (player) { player.name = e.target.value; saveState(); }
+      });
+      list.appendChild(row);
+    });
+  });
+}
+
+function updateStats() {
+  document.getElementById('stat-round').textContent = currentRound + 1;
+  let done = 0, total = 0;
+  for (let r = 0; r < NUM_ROUNDS; r++) {
+    const matches = state.schedule?.[r] || [];
+    total += matches.length;
+    matches.forEach((_, mi) => { if (state.scores[`${r}-${mi}`]) done++; });
+  }
+  document.getElementById('stat-done').textContent  = done;
+  document.getElementById('stat-total').textContent = total;
+}
+
+function renderAll() {
+  renderHeader();
+  renderRoundNav();
+  renderRound();
+  renderLeaderboard();
+  renderPlayers();
+  updateStats();
+}
+
+// ============== TABS ==============
+document.querySelectorAll('.tab').forEach(t => {
+  t.onclick = () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    const tgt = t.dataset.tab;
+    ['schedule','leaderboard','players'].forEach(n =>
+      document.getElementById('tab-'+n).classList.toggle('hidden', n !== tgt));
+  };
+});
+document.querySelectorAll('.lb-tab').forEach(t => {
+  t.onclick = () => {
+    document.querySelectorAll('.lb-tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    currentLB = t.dataset.lb;
+    renderLeaderboard();
+  };
+});
+
+// ============== RESET ==============
+function resetAll() {
+  if (!confirm('Reset everything? All scores and players reset to defaults.')) return;
+  try { localStorage.removeItem('padel-mixicano-v1'); } catch(e) {}
+  const players = [...DEFAULT_PLAYERS];
+  state = { players, schedule: generateSchedule(players), scores: {}, locked: {}, subs: {} };
+  saveState();
+  currentRound = 0; currentLB = 'all';
+  document.querySelector('.lb-tab[data-lb="all"]').classList.add('active');
+  document.querySelectorAll('.lb-tab').forEach(x => { if(x.dataset.lb !== 'all') x.classList.remove('active'); });
+  document.querySelector('.tab[data-tab="schedule"]').classList.add('active');
+  document.querySelectorAll('.tab').forEach(x => { if(x.dataset.tab !== 'schedule') x.classList.remove('active'); });
+  ['schedule','leaderboard','players'].forEach(n =>
+    document.getElementById('tab-'+n).classList.toggle('hidden', n !== 'schedule'));
+  renderAll();
+}
+
+// ============== CELEBRATION ==============
+function checkTournamentComplete() {
+  const allDone = Array.from({length: NUM_ROUNDS}, (_,r) => {
+    const matches = state.schedule?.[r] || [];
+    return matches.length > 0 && matches.every((_,mi) => state.scores[`${r}-${mi}`]) && state.locked[r];
+  }).every(Boolean);
+  if (allDone) setTimeout(showCelebration, 700);
+}
+
+function computeCelebrationStats() {
+  const stats  = computeStats();
+  const king   = Object.values(stats).filter(s => s.isMan) .sort((a,b) => b.pts-a.pts||b.w-a.w)[0];
+  const queen  = Object.values(stats).filter(s => !s.isMan).sort((a,b) => b.pts-a.pts||b.w-a.w)[0];
+  const duoMap = {};
+  let biggestWin = null, totalPts = 0;
+
+  for (let r = 0; r < NUM_ROUNDS; r++) {
+    const matches = state.schedule?.[r] || [];
+    for (let m = 0; m < matches.length; m++) {
+      const sc = state.scores[`${r}-${m}`];
+      if (!sc) continue;
+      totalPts += sc.a + sc.b;
+      const mp = getMatchPlayers(r, m);
+      const margin = Math.abs(sc.a - sc.b);
+      if (!biggestWin || margin > biggestWin.margin) biggestWin = { margin, r, m, mp, sc };
+      const winA = sc.a > sc.b, winB = sc.b > sc.a;
+      if (winA || winB) {
+        const man = winA ? mp[0] : mp[2], woman = winA ? mp[1] : mp[3];
+        const k = `${man}-${woman}`;
+        if (!duoMap[k]) duoMap[k] = { man, woman, wins: 0 };
+        duoMap[k].wins++;
+      }
+    }
+  }
+  const bestDuo = Object.values(duoMap).sort((a,b) => b.wins-a.wins)[0] || null;
+  return { king, queen, bestDuo, biggestWin, totalPts };
+}
+
+function showCelebration() {
+  const cs = computeCelebrationStats();
+  document.getElementById('celeb-king').textContent      = cs.king?.name   ?? '—';
+  document.getElementById('celeb-king-pts').textContent  = cs.king  ? `${cs.king.pts} pts · ${cs.king.w} wins`   : '—';
+  document.getElementById('celeb-queen').textContent     = cs.queen?.name  ?? '—';
+  document.getElementById('celeb-queen-pts').textContent = cs.queen ? `${cs.queen.pts} pts · ${cs.queen.w} wins` : '—';
+  if (cs.bestDuo) {
+    document.getElementById('celeb-duo').textContent      = `${getName(cs.bestDuo.man)} + ${getName(cs.bestDuo.woman)}`;
+    document.getElementById('celeb-duo-hint').textContent = `${cs.bestDuo.wins} wins together`;
+  }
+  if (cs.biggestWin) {
+    const bw = cs.biggestWin, winA = bw.sc.a > bw.sc.b;
+    document.getElementById('celeb-bigwin').textContent      = winA ? `${bw.sc.a} – ${bw.sc.b}` : `${bw.sc.b} – ${bw.sc.a}`;
+    document.getElementById('celeb-bigwin-hint').textContent = `${getName(winA?bw.mp[0]:bw.mp[2])} & ${getName(winA?bw.mp[1]:bw.mp[3])} · R${bw.r+1} C${bw.m+1} · +${bw.margin} pt margin`;
+  }
+  document.getElementById('celeb-total-num').textContent = cs.totalPts;
+  document.getElementById('celebration').classList.remove('hidden');
+  spawnConfetti();
+}
+
+function closeCelebration(goToLB) {
+  document.getElementById('celebration').classList.add('hidden');
+  if (goToLB) {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelector('.tab[data-tab="leaderboard"]').classList.add('active');
+    ['schedule','leaderboard','players'].forEach(n =>
+      document.getElementById('tab-'+n).classList.toggle('hidden', n !== 'leaderboard'));
+  }
+}
+
+function spawnConfetti() {
+  const colors = ['#d4ff3a','#ff8db0','#7ec8ff','#f4c430','#d97757','#ffffff'];
+  const canvas = document.createElement('canvas');
+  canvas.style.cssText = 'position:fixed;inset:0;z-index:199;pointer-events:none;';
+  canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+  document.body.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+  const pieces = Array.from({length:100}, () => ({
+    x: Math.random()*canvas.width, y: Math.random()*-canvas.height*0.6-10,
+    w: Math.random()*12+5, h: Math.random()*7+3,
+    color: colors[Math.floor(Math.random()*colors.length)],
+    speed: Math.random()*3.5+1.5, angle: Math.random()*Math.PI*2,
+    spin: (Math.random()-0.5)*0.13, drift: (Math.random()-0.5)*1.4
+  }));
+  const TOTAL=6500, FADE_AT=TOTAL*0.65; let startTs=null;
+  function frame(ts) {
+    if (!startTs) startTs=ts;
+    const elapsed=ts-startTs;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    const alpha = elapsed<FADE_AT ? 1 : Math.max(0,1-(elapsed-FADE_AT)/(TOTAL-FADE_AT));
+    let active=false;
+    pieces.forEach(p => {
+      p.y+=p.speed; p.x+=p.drift; p.angle+=p.spin;
+      if (p.y<canvas.height+20) {
+        active=true;
+        ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.angle);
+        ctx.globalAlpha=alpha; ctx.fillStyle=p.color;
+        ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h); ctx.restore();
+      }
+    });
+    if (active && elapsed<TOTAL) requestAnimationFrame(frame); else canvas.remove();
+  }
+  requestAnimationFrame(frame);
+}
+
+renderAll();
+</script>
+</body>
+</html>
