@@ -359,31 +359,18 @@ function shuffle(arr) {
 }
 
 function generateRound1(players) {
-  const src     = players || state.players;
-  const allMen   = src.filter(p => p.gender === 'm');
+  const src    = players || state.players;
+  const allMen  = src.filter(p => p.gender === 'm');
   const allWomen = src.filter(p => p.gender === 'w');
   const courts = Math.min(NUM_COURTS, Math.floor(allMen.length / 2), Math.floor(allWomen.length / 2));
   if (courts === 0) return [];
 
-  // Marcell (id=1) always partners with Savira (id=9) in Court 1
-  const pinnedMan   = src.find(p => p.id === 1 && p.gender === 'm');
-  const pinnedWoman = src.find(p => p.id === 9 && p.gender === 'w');
-  const restMen     = shuffle(allMen.filter(p => p.id !== 1));
-  const restWomen   = shuffle(allWomen.filter(p => p.id !== 9));
+  // Marcell (id=1) always plays in Court 1 — partner and opponents are random
+  const marcell  = src.find(p => p.id === 1 && p.gender === 'm');
+  const restMen  = shuffle(allMen.filter(p => p.id !== 1));
+  const men      = marcell ? [marcell, ...restMen] : shuffle(allMen);
+  const women    = shuffle(allWomen);
 
-  if (pinnedMan && pinnedWoman && restMen.length >= 1 && restWomen.length >= 1) {
-    const round = [[pinnedMan.id, pinnedWoman.id, restMen[0].id, restWomen[0].id]];
-    for (let c = 1; c < courts; c++) {
-      const i = c * 2 - 1;
-      if (restMen[i] && restWomen[i] && restMen[i+1] && restWomen[i+1])
-        round.push([restMen[i].id, restWomen[i].id, restMen[i+1].id, restWomen[i+1].id]);
-    }
-    return round;
-  }
-
-  // Fallback if either pinned player was removed
-  const men   = shuffle(allMen);
-  const women = shuffle(allWomen);
   const round = [];
   for (let c = 0; c < courts; c++) {
     const i = c * 2;
